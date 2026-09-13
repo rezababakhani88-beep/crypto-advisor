@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>مشاور کریپتو</title>
+<style>
+:root{--bg:#f3f4f6;--card:#fff;--ink:#16181d;--muted:#6b7280;--line:#e8eaee;--brand:#0f766e;
+--pos:#15803d;--neg:#b91c1c;--buy:#e8f6ee;--sell:#fdecec;--warn:#fff5dc;--soft:#f6f7f9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,"Segoe UI",system-ui,sans-serif;
+line-height:1.75;font-size:15px;-webkit-text-size-adjust:100%}
+header{background:var(--brand);color:#fff;padding:14px 16px 12px;padding-top:max(14px,env(safe-area-inset-top))}
+header h1{margin:0;font-size:19px} header p{margin:2px 0 0;font-size:12.5px;opacity:.85}
+main{max-width:720px;margin:auto;padding:12px 12px 40px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+h2{font-size:16.5px;margin:0 0 8px} h3{font-size:14px;margin:14px 0 6px;color:var(--muted)}
+button{font:inherit;border:0;border-radius:12px;padding:13px 16px;cursor:pointer}
+.primary{background:var(--brand);color:#fff;width:100%;font-size:16.5px;font-weight:bold}
+.primary:disabled{opacity:.55}
+.ghost{background:var(--soft);color:var(--ink);width:100%;margin-top:8px}
+.danger{background:#fff;color:var(--neg);border:1px solid #f1c4c4;width:100%;margin-top:8px}
+.bar{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:10px;display:none}
+.bar>i{display:block;height:100%;width:0;background:var(--brand);transition:width .2s}
+.status{font-size:13px;color:var(--muted);margin-top:8px;min-height:1.2em}
+.err{background:var(--sell);color:var(--neg);border-radius:10px;padding:10px 12px;margin-top:10px}
+.market.on{border-right:6px solid var(--pos)} .market.off{border-right:6px solid var(--neg)}
+.big{font-size:18px;font-weight:bold;margin:2px 0 6px}
+.muted{color:var(--muted)} .small{font-size:12.5px} .pos{color:var(--pos)} .neg{color:var(--neg)}
+.act{border-radius:10px;padding:10px 12px;margin:7px 0}
+.act.buy{background:var(--buy)} .act.sell{background:var(--sell)} .act.warn{background:var(--warn)}
+.act.none{background:var(--soft);color:var(--muted)}
+.act b{font-size:15.5px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.stats div{background:var(--soft);border-radius:10px;padding:8px 10px}
+.stats span{display:block;font-size:11.5px;color:var(--muted)} .stats b{font-size:15px}
+.hold{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+.hold .top{display:flex;justify-content:space-between;align-items:center}
+.hold .top b{font-size:16px}
+.row{display:flex;justify-content:space-between;font-size:13.5px;border-top:1px dashed var(--line);padding-top:3px;margin-top:3px}
+.list{margin:0;padding:0;list-style:none}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.list li:last-child{border-bottom:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:6px}
+.num{direction:ltr;unicode-bidi:embed;white-space:nowrap}
+details summary{cursor:pointer;font-weight:bold}
+.foot{font-size:12px;color:var(--muted);margin-top:18px;line-height:1.9}
+</style>
+</head>
+<body>
+<header>
+  <h1>مشاور روزانه‌ی کریپتو</h1>
+  <p>حالت آزمایشی — پول واقعی جابه‌جا نمی‌شود</p>
+</header>
+<main>
+  <div class="card">
+    <button id="runBtn" class="primary">اجرای تحلیل امروز</button>
+    <div class="bar" id="bar"><i id="barFill"></i></div>
+    <div class="status" id="status"></div>
+    <div id="error"></div>
+  </div>
+
+  <div id="content"></div>
+
+  <div class="card">
+    <details>
+      <summary>پشتیبان‌گیری و انتقال سبد</summary>
+      <p class="small muted">سبد فقط در همین گوشی و همین مرورگر ذخیره می‌شود. اگر داده‌های مرورگر پاک شود، سبد هم پاک می‌شود؛
+      هر چند وقت یک‌بار پشتیبان بگیر. برای ادامه‌ی همان سبدِ کامپیوتر: فایل <b>state.json</b> را از پوشه‌ی crypto_advisor
+      به گوشی بفرست (مثلاً در تلگرام Saved Messages) و اینجا «بازگردانی» کن.</p>
+      <button class="ghost" id="exportBtn">دانلود فایل پشتیبان</button>
+      <button class="ghost" id="importBtn">بازگردانی از فایل (مثلاً state.json کامپیوتر)</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <button class="danger" id="resetBtn">شروع از اول (پاک کردن سبد)</button>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>چطور کار می‌کند؟</summary>
+      <p class="small">هر بار که اپ را باز کنی، قیمت‌ها را مستقیم از بایننس می‌گیرد و قانون‌ها را روی آخرین کندل روزانه‌ی
+      <b>بسته‌شده</b> اجرا می‌کند (کندل روزانه ساعت ۳:۳۰ بامداد به وقت ایران بسته می‌شود). اگر در یک روز چند بار باز کنی،
+      معامله‌ی تکراری ثبت نمی‌شود.</p>
+      <ul class="small">
+        <li>بیت‌کوین بالای میانگین ۱۲۰ روزه‌اش = بازار روشن. زیر آن = همه‌چیز فروخته و نقد می‌شود.</li>
+        <li>هر ارز فقط وقتی خریده می‌شود که بالای میانگین ۱۲۰ روزه‌ی خودش باشد؛ زیر آن فروخته می‌شود.</li>
+        <li>سبد چندارزی: تا ۵ ارز از بین ۲۰ ارز پرحجم بازار. سبد دوم: فقط بیت‌کوین. هر کدام ۲۰۰۰ دلار مجازی.</li>
+        <li>حد سود و حد ضرر ثابت ندارد؛ خودِ میانگین نقش حد ضرر را دارد. کف و سقف را نمی‌گیرد، وسط روند را می‌گیرد.</li>
+      </ul>
+      <p class="small muted">VPN گوشی باید روشن باشد.</p>
+    </details>
+  </div>
+
+  <p class="foot">این ابزار آزمایشی است؛ خرید و فروش‌ها فرضی و با قیمت بسته‌شدن روزانه ثبت می‌شوند. نتایج گذشته
+  (بک‌تست ۲۰۲۰ تا ۲۰۲۵) تضمینی برای آینده نیست و این اپ مشاوره‌ی مالی نیست.</p>
+</main>
+
+<script>
+"use strict";
+// ================= تنظیمات (همان مقادیر advisor.py) =================
+const CFG = {START_CAPITAL: 2000, MA_DAYS: 120, MAX_COINS: 5, UNIVERSE_SIZE: 20, PRESCREEN: 60,
+             MIN_HISTORY_DAYS: 125, FEE_PCT: 0.10, MIN_ORDER_USD: 10};
+const BASES = ["https://api.binance.com", "https://data-api.binance.vision"];
+const STATE_KEY = "crypto_advisor_state_v1";
+const SNAP_KEY = "crypto_advisor_snapshot_v1";
+const EXCLUDE = new Set(["USDC","FDUSD","TUSD","BUSD","DAI","USDP","PYUSD","USDE","USD1","UST","USTC","SUSD",
+  "XUSD","USDS","RLUSD","BFUSD","FRAX","LUSD","GUSD","USDJ","PAX","EUR","EURI","AEUR","TRY","BRL","GBP","AUD",
+  "JPY","RUB","UAH","ZAR","NGN","PLN","RON","ARS","MXN","COP","CZK","IDRT","BIDR","BVND","PAXG","XAUT","WBTC",
+  "WBETH","BETH","BNSOL","STETH","CBBTC","SOLVBTC"]);
+const LEV_ROOTS = new Set(["BTC","ETH","BNB","XRP","ADA","DOT","LINK","LTC","TRX","EOS","XTZ","YFI","SUSHI",
+  "UNI","AAVE","FIL","SXP","1INCH","XLM","BCH"]);
+const VALID = /^[A-Z0-9]{2,15}USDT$/;
+const PORTFOLIOS = {multi: {title: "سبد چندارزی", icon: "🧺", max: CFG.MAX_COINS},
+                    btc: {title: "سبد فقط بیت‌کوین", icon: "₿", max: 1}};
+
+// ================= ابزار =================
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sum = a => a.reduce((x, y) => x + y, 0);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dayStr = ms => new Date(ms).toISOString().slice(0, 10);
+const coin = s => (s.endsWith("USDT") ? s.slice(0, -4) : s);
+const fmt = (x, d) => x.toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
+const money = x => `<span class="num">${fmt(x, 2)}$</span>`;
+const price = x => `<span class="num">${x >= 1 ? fmt(x, 2) : Number(x.toPrecision(6)).toString()}$</span>`;
+const pct = x => `<span class="num">${x >= 0 ? "+" : ""}${x.toFixed(1)}%</span>`;
+const cls = x => (x >= 0 ? "pos" : "neg");
+const sgn = x => (x >= 0 ? "+" : "-");
+const pctP = x => `<span class="num">(${sgn(x)}${Math.abs(x).toFixed(1)}%)</span>`;
+const pnlP = (usd, p) => `<span class="num">${sgn(usd)}${fmt(Math.abs(usd), 2)}$ (${sgn(p)}${Math.abs(p).toFixed(1)}%)</span>`;
+class NetError extends Error {}
+
+function isLeveraged(base) {
+  if (base.endsWith("DOWN") || base.endsWith("BULL") || base.endsWith("BEAR")) return true;
+  return base.endsWith("UP") && LEV_ROOTS.has(base.slice(0, -2));
+}
+
+// ================= شبکه =================
+async function getJSON(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const base of BASES) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 20000);
+      try {
+        const r = await fetch(base + path + (qs ? "?" + qs : ""), {signal: ctrl.signal, cache: "no-store"});
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return await r.json();
+      } catch (e) {
+        last = e;
+      } finally {
+        clearTimeout(t);
+      }
+    }
+    await sleep(1500 * (attempt + 1));
+  }
+  throw new NetError(String((last && last.message) || last));
+}
+
+async function symbolStats(sym) {
+  let rows;
+  try {
+    rows = await getJSON("/api/v3/klines", {symbol: sym, interval: "1d", limit: 200});
+  } catch (e) {
+    return null;
+  }
+  const now = Date.now();   // فقط کندل‌های بسته‌شده؛ کندل در جریانِ امروز هرگز
+  const cl = rows.filter(r => r[6] < now).map(r => ({t: r[0], close: +r[4], qv: +r[7]}));
+  if (cl.length < CFG.MA_DAYS) return null;
+  const closes = cl.map(c => c.close);
+  const last90 = cl.slice(-90);
+  return {
+    close: closes[closes.length - 1],
+    ma: sum(closes.slice(-CFG.MA_DAYS)) / CFG.MA_DAYS,
+    date: dayStr(cl[cl.length - 1].t),
+    vol90: sum(last90.map(c => c.qv)) / last90.length,
+    days: cl.length,
+  };
+}
+
+async function mapPool(items, n, fn, onProgress) {
+  const out = {};
+  let next = 0, done = 0;
+  async function worker() {
+    while (next < items.length) {
+      const it = items[next++];
+      out[it] = await fn(it);
+      onProgress(++done, items.length);
+    }
+  }
+  await Promise.all(Array.from({length: Math.min(n, items.length)}, worker));
+  return out;
+}
+
+async function loadMarket(held, onProgress) {
+  const tickers = await getJSON("/api/v3/ticker/24hr");
+  const ranked = [];
+  for (const t of tickers) {
+    const s = t.symbol || "";
+    if (!VALID.test(s)) continue;
+    const base = s.slice(0, -4);
+    if (EXCLUDE.has(base) || isLeveraged(base)) continue;
+    const qv = +(t.quoteVolume || 0);
+    if (qv > 0) ranked.push([qv, s]);
+  }
+  ranked.sort((a, b) => (b[0] - a[0]) || (a[1] < b[1] ? 1 : a[1] > b[1] ? -1 : 0));
+  const prescreen = ranked.slice(0, CFG.PRESCREEN).map(x => x[1]);
+  const need = [...new Set([...prescreen, ...held, "BTCUSDT"])].sort();
+  const data = await mapPool(need, 6, symbolStats, onProgress);
+  const eligible = prescreen.filter(s => data[s] && data[s].days >= CFG.MIN_HISTORY_DAYS);
+  const universe = eligible.slice().sort((a, b) => data[b].vol90 - data[a].vol90).slice(0, CFG.UNIVERSE_SIZE);
+  return {universe, data};
+}
+
+// ================= وضعیت =================
+let storageOk = true;
+function newPortfolio() { return {cash: CFG.START_CAPITAL, positions: {}, closed: [], fees: 0}; }
+function freshState() {
+  const now = new Date();
+  return {created: now.toISOString().slice(0, 16).replace("T", " "), last_decision_date: null,
+          last_actions: {}, last_waiting: {}, trades: [],
+          portfolios: {multi: newPortfolio(), btc: newPortfolio()}};
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    return raw ? normalizeState(JSON.parse(raw)) : freshState();
+  } catch (e) {
+    storageOk = false;
+    return freshState();
+  }
+}
+function saveState(state) {
+  try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); storageOk = true; }
+  catch (e) { storageOk = false; }
+}
+function loadSnap() { try { return JSON.parse(localStorage.getItem(SNAP_KEY) || "null"); } catch (e) { return null; } }
+function saveSnap(s) { try { localStorage.setItem(SNAP_KEY, JSON.stringify(s)); } catch (e) {} }
+
+// فایل واردشده (مثلاً state.json کامپیوتر) داده‌ی نامطمئن است: ساختار و اعداد بررسی می‌شوند
+function normalizeState(s) {
+  if (!s || typeof s !== "object" || !s.portfolios) throw new Error("ساختار فایل درست نیست");
+  const out = freshState();
+  out.created = String(s.created || out.created);
+  out.last_decision_date = /^\d{4}-\d{2}-\d{2}$/.test(s.last_decision_date || "") ? s.last_decision_date : null;
+  out.last_actions = (s.last_actions && typeof s.last_actions === "object") ? s.last_actions : {};
+  out.last_waiting = (s.last_waiting && typeof s.last_waiting === "object") ? s.last_waiting : {};
+  out.trades = Array.isArray(s.trades) ? s.trades : [];
+  for (const key of Object.keys(PORTFOLIOS)) {
+    const p = s.portfolios[key];
+    if (!p || !Number.isFinite(+p.cash)) throw new Error("سبد «" + key + "» در فایل نیست");
+    const pf = {cash: +p.cash, fees: Number.isFinite(+p.fees) ? +p.fees : 0, positions: {},
+                closed: Array.isArray(p.closed) ? p.closed : []};
+    for (const [sym, pos] of Object.entries(p.positions || {})) {
+      if (!VALID.test(sym)) continue;
+      const q = +pos.qty, ep = +pos.entry_price, c = +pos.cost;
+      if (!(q > 0 && ep > 0 && c > 0)) continue;
+      pf.positions[sym] = {qty: q, entry_price: ep, cost: c, entry_date: String(pos.entry_date || "")};
+    }
+    out.portfolios[key] = pf;
+  }
+  return out;
+}
+
+function portfolioValue(pf, data) {
+  let v = pf.cash;
+  for (const [sym, pos] of Object.entries(pf.positions)) {
+    const st = data[sym];
+    v += pos.qty * (st ? st.close : pos.entry_price);
+  }
+  return v;
+}
+
+// ================= قوانین (عیناً مثل advisor.py) =================
+function applyRules(key, pf, universe, data, marketOn, date, trades) {
+  const maxCoins = PORTFOLIOS[key].max, actions = [], waiting = [];
+
+  for (const sym of Object.keys(pf.positions)) {
+    const pos = pf.positions[sym], st = data[sym];
+    if (!st || st.date !== date) {
+      actions.push({type: "warn", symbol: sym,
+        text: "داده‌ی امروزِ این ارز دریافت نشد - دستی بررسی کن (ممکن است معامله‌اش متوقف شده باشد)"});
+      continue;
+    }
+    if (marketOn && st.close >= st.ma) continue;
+    const reason = !marketOn ? "بیت‌کوین زیر میانگین رفت؛ کل بازار خاموش است"
+                             : `قیمت زیر میانگین ${CFG.MA_DAYS} روزه‌ی خودش رفت`;
+    const gross = pos.qty * st.close, fee = gross * CFG.FEE_PCT / 100, proceeds = gross - fee;
+    const pnl = proceeds - pos.cost, pnlPct = pnl / pos.cost * 100;
+    pf.cash += proceeds;
+    pf.fees += fee;
+    pf.closed.push({symbol: sym, entry_date: pos.entry_date, entry_price: pos.entry_price, exit_date: date,
+                    exit_price: st.close, cost: pos.cost, proceeds, pnl, pnl_pct: pnlPct});
+    delete pf.positions[sym];
+    actions.push({type: "sell", symbol: sym, price: st.close, usd: proceeds, pnl, pnl_pct: pnlPct, reason});
+    trades.push({date, portfolio: key, action: "sell", symbol: sym, price: st.close, usd: proceeds, pnl});
+  }
+
+  if (marketOn) {
+    const equity = portfolioValue(pf, data);
+    for (const sym of universe) {
+      if (pf.positions[sym]) continue;
+      const st = data[sym];
+      if (!st || st.date !== date || st.close <= st.ma) continue;
+      if (Object.keys(pf.positions).length >= maxCoins) { waiting.push(sym); continue; }
+      const spend = Math.min(equity / maxCoins, pf.cash);
+      if (spend < CFG.MIN_ORDER_USD) { waiting.push(sym); continue; }
+      const fee = spend * CFG.FEE_PCT / 100, qty = (spend - fee) / st.close;
+      pf.cash -= spend;
+      pf.fees += fee;
+      pf.positions[sym] = {qty, entry_price: st.close, entry_date: date, cost: spend};
+      actions.push({type: "buy", symbol: sym, price: st.close, usd: spend, qty,
+                    reason: `بازار روشن است و قیمت بالای میانگین ${CFG.MA_DAYS} روزه‌ی خودش است`});
+      trades.push({date, portfolio: key, action: "buy", symbol: sym, price: st.close, usd: spend});
+    }
+  }
+  return {actions, waiting};
+}
+
+async function runAdvisor() {
+  const state = loadState();
+  const held = new Set();
+  for (const pf of Object.values(state.portfolios)) Object.keys(pf.positions).forEach(s => held.add(s));
+
+  setStatus("دریافت فهرست ارزها از بایننس...");
+  const {universe, data} = await loadMarket(held, (d, n) => {
+    setProgress(d / n);
+    setStatus(`دریافت قیمت‌ها... ${d} از ${n}`);
+  });
+  const btc = data.BTCUSDT;
+  if (!btc) throw new NetError("داده‌ی بیت‌کوین دریافت نشد");
+
+  const date = btc.date, marketOn = btc.close > btc.ma;
+  const last = state.last_decision_date, fresh = last !== date;
+  const gap = last && fresh ? Math.round((Date.parse(date) - Date.parse(last)) / 86400000) : 0;
+
+  if (fresh) {
+    state.last_actions = {};
+    state.last_waiting = {};
+    for (const key of Object.keys(PORTFOLIOS)) {
+      const uni = key === "multi" ? universe : ["BTCUSDT"];
+      const r = applyRules(key, state.portfolios[key], uni, data, marketOn, date, state.trades);
+      state.last_actions[key] = r.actions;
+      state.last_waiting[key] = r.waiting;
+    }
+    state.last_decision_date = date;
+    saveState(state);
+  }
+
+  // عکس فوری بازار برای نمایش آفلاین (فقط ارزهای لازم، نه همه)
+  const keep = new Set([...universe, "BTCUSDT"]);
+  for (const pf of Object.values(state.portfolios)) Object.keys(pf.positions).forEach(s => keep.add(s));
+  const snapData = {};
+  for (const s of keep) if (data[s]) snapData[s] = data[s];
+  const snap = {data: snapData, universe, marketOn, date, fresh, gap, fetchedAt: new Date().toISOString()};
+  saveSnap(snap);
+  render(state, snap);
+}
+
+// ================= نمایش =================
+function setStatus(t) { $("status").textContent = t; }
+function setProgress(f) { $("bar").style.display = "block"; $("barFill").style.width = Math.round(f * 100) + "%"; }
+
+function render(state, snap) {
+  if (!snap) { $("content").innerHTML = ""; return; }
+  const {data, universe, marketOn, date} = snap;
+  const btc = data.BTCUSDT;
+  const parts = [];
+  const dist = (btc.close / btc.ma - 1) * 100;
+
+  let notice = "";
+  if (snap.gap > 1) notice += `<p class="small">⚠ ${snap.gap} روز از اجرای قبلی گذشته؛ ممکن است سیگنالی دیر دیده شده باشد.</p>`;
+  if (!snap.fresh) notice += `<p class="small muted">امروز قبلاً اجرا شده؛ دستورهای زیر همان دستورهای امروز هستند.</p>`;
+  if (!storageOk) notice += `<p class="small neg">⚠ مرورگر اجازه‌ی ذخیره نمی‌دهد (حالت ناشناس؟)؛ سبد به خاطر سپرده نمی‌شود.</p>`;
+
+  parts.push(`<div class="card market ${marketOn ? "on" : "off"}">
+    <h2>وضعیت بازار — ${esc(date)}</h2>
+    <div class="big">${marketOn ? "روشن ✅ — اجازه‌ی خرید هست" : "خاموش ⛔ — همه‌چیز نقد می‌ماند"}</div>
+    <div>بیت‌کوین: <b>${price(btc.close)}</b></div>
+    <div>میانگین ${CFG.MA_DAYS} روزه: <b>${price(btc.ma)}</b> &nbsp; <span class="${cls(dist)}">${pctP(dist)}</span></div>
+    <p class="small muted">${marketOn ? "اگر بیت‌کوین زیر " + price(btc.ma) + " بسته شود، بازار خاموش و همه‌ی سبدها نقد می‌شوند."
+                                      : "وقتی بیت‌کوین بالای " + price(btc.ma) + " بسته شود، بازار روشن می‌شود."}</p>
+    ${notice}
+  </div>`);
+
+  for (const [key, meta] of Object.entries(PORTFOLIOS)) {
+    const pf = state.portfolios[key];
+    const acts = state.last_actions[key] || [];
+    const value = portfolioValue(pf, data);
+    const total = (value / CFG.START_CAPITAL - 1) * 100;
+    const wins = pf.closed.filter(c => c.pnl > 0).length;
+    const bought = new Set(acts.filter(a => a.type === "buy").map(a => a.symbol));
+
+    let actHtml = "";
+    for (const a of acts) {
+      const c = esc(coin(a.symbol));
+      if (a.type === "buy") {
+        actHtml += `<div class="act buy">🟢 <b>بخر ${c}</b> به مبلغ ${money(+a.usd)}<br>
+          <span class="small">قیمت ${price(+a.price)} — <span class="muted">${esc(a.reason || "")}</span></span></div>`;
+      } else if (a.type === "sell") {
+        actHtml += `<div class="act sell">🔴 <b>بفروش ${c}</b> — قیمت ${price(+a.price)}<br>
+          نتیجه: <b class="${cls(+a.pnl)}">${pnlP(+a.pnl, +a.pnl_pct)}</b><br>
+          <span class="small muted">${esc(a.reason || "")}</span></div>`;
+      } else {
+        actHtml += `<div class="act warn">⚠ <b>${c}</b>: ${esc(a.text || "")}</div>`;
+      }
+    }
+    if (!actHtml) actHtml = `<div class="act none">امروز کاری لازم نیست.</div>`;
+
+    let holds = "";
+    for (const [sym, pos] of Object.entries(pf.positions)) {
+      const st = data[sym];
+      if (!st) { holds += `<div class="hold"><b>${esc(coin(sym))}</b> — داده‌ای دریافت نشد</div>`; continue; }
+      const chg = (st.close / pos.entry_price - 1) * 100, d = (st.close / st.ma - 1) * 100;
+      holds += `<div class="hold">
+        <div class="top"><b>${esc(coin(sym))}</b><b class="${cls(chg)}">${pct(chg)}</b></div>
+        <div class="row"><span>خرید</span><span>${esc(pos.entry_date)} — ${price(pos.entry_price)}</span></div>
+        <div class="row"><span>قیمت فعلی</span><span>${price(st.close)}</span></div>
+        <div class="row"><span>ارزش</span><span>${money(pos.qty * st.close)}</span></div>
+        <div class="row"><span>فروش اگر زیر این بسته شود</span><span>${price(st.ma)} <span class="muted small">${pctP(d)}</span></span></div>
+        ${bought.has(sym) ? '<div class="small muted">امروز خریده شد</div>' : ""}
+      </div>`;
+    }
+    if (!holds) holds = `<p class="small muted">فعلاً هیچ ارزی در سبد نیست (کل سرمایه نقد است).</p>`;
+
+    const wait = (state.last_waiting && state.last_waiting[key]) || [];
+    const waitHtml = wait.length
+      ? `<p class="small muted">در صف خرید (سبد پر است): ${wait.slice(0, 12).map(s => esc(coin(s))).join("، ")}</p>` : "";
+
+    parts.push(`<div class="card">
+      <h2>${meta.icon} ${esc(meta.title)}</h2>
+      <div class="stats">
+        <div><span>ارزش کل</span><b>${money(value)}</b></div>
+        <div><span>از شروع (${fmt(CFG.START_CAPITAL, 0)}$)</span><b class="${cls(total)}">${pct(total)}</b></div>
+        <div><span>نقد</span><b>${money(pf.cash)}</b></div>
+        <div><span>معاملات بسته‌شده</span><b>${pf.closed.length} <span class="small muted">(${wins} سود)</span></b></div>
+      </div>
+      <h3>دستورهای امروز</h3>${actHtml}
+      <h3>دارایی‌های فعلی</h3>${holds}${waitHtml}
+      <p class="small muted">کارمزد پرداختی تا امروز: ${money(pf.fees)}</p>
+    </div>`);
+  }
+
+  const closedAll = [];
+  for (const [key, meta] of Object.entries(PORTFOLIOS))
+    for (const c of state.portfolios[key].closed) closedAll.push([meta.title, c]);
+  closedAll.sort((a, b) => String(b[1].exit_date).localeCompare(String(a[1].exit_date)));
+  if (closedAll.length) {
+    parts.push(`<div class="card"><h2>معاملات بسته‌شده</h2><ul class="list">${
+      closedAll.slice(0, 40).map(([t, c]) => `<li><span><b>${esc(coin(String(c.symbol)))}</b>
+        <span class="small muted">${esc(t)} — ${esc(c.entry_date)} تا ${esc(c.exit_date)}</span></span>
+        <b class="${cls(+c.pnl)}">${pnlP(+c.pnl, +c.pnl_pct)}</b></li>`).join("")}</ul></div>`);
+  }
+
+  parts.push(`<div class="card"><h2>ارزهای زیر نظر (${universe.length} ارز پرحجم)</h2><ul class="list">${
+    universe.map(s => {
+      const st = data[s]; if (!st) return "";
+      const up = st.close > st.ma;
+      return `<li><span><i class="dot" style="background:${up ? "var(--pos)" : "var(--neg)"}"></i><b>${esc(coin(s))}</b></span>
+        <span class="small">${price(st.close)} <span class="muted">/ میانگین ${price(st.ma)}</span></span></li>`;
+    }).join("")}</ul>
+    <p class="small muted">سبز = بالای میانگین ${CFG.MA_DAYS} روزه (مجاز به خرید) — قرمز = زیر میانگین</p></div>`);
+
+  $("content").innerHTML = parts.join("");
+}
+
+// ================= دکمه‌ها =================
+let running = false;
+async function onRun() {
+  if (running) return;
+  running = true;
+  $("runBtn").disabled = true;
+  $("error").innerHTML = "";
+  setProgress(0);
+  try {
+    await runAdvisor();
+    const snap = loadSnap();
+    setStatus("آخرین به‌روزرسانی: " + new Date(snap.fetchedAt).toLocaleString("fa-IR"));
+  } catch (e) {
+    const net = e instanceof NetError;
+    $("error").innerHTML = `<div class="err">${net
+      ? "⛔ اتصال به بایننس برقرار نشد. VPN گوشی را روشن کن (یا سرورش را عوض کن) و دوباره بزن."
+      : "⛔ خطای غیرمنتظره: " + esc(e.message || e)}</div>`;
+    setStatus("");
+  } finally {
+    $("bar").style.display = "none";
+    $("runBtn").disabled = false;
+    running = false;
+  }
+}
+
+function onExport() {
+  const state = loadState();
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `crypto_advisor_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+function onImportFile(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let incoming;
+    try { incoming = normalizeState(JSON.parse(reader.result)); }
+    catch (e) { alert("این فایل قابل خواندن نیست: " + (e.message || e)); return; }
+    const n = Object.values(incoming.portfolios).reduce((k, p) => k + Object.keys(p.positions).length, 0);
+    if (!confirm(`سبد فعلی این گوشی با سبد داخل فایل جایگزین شود؟\n(${n} ارز در فایل هست)`)) return;
+    saveState(incoming);
+    localStorage.removeItem(SNAP_KEY);
+    alert("بازگردانی شد. حالا «اجرای تحلیل امروز» را بزن.");
+    $("content").innerHTML = "";
+    onRun();
+  };
+  reader.readAsText(file);
+}
+
+function onReset() {
+  if (!confirm("کل سبد و تاریخچه پاک شود و از ۲۰۰۰ دلار از اول شروع شود؟")) return;
+  if (!confirm("مطمئنی؟ این کار برگشت‌پذیر نیست (مگر پشتیبان داشته باشی).")) return;
+  try { localStorage.removeItem(STATE_KEY); localStorage.removeItem(SNAP_KEY); } catch (e) {}
+  $("content").innerHTML = "";
+  setStatus("سبد پاک شد. «اجرای تحلیل امروز» را بزن تا از اول شروع شود.");
+}
+
+$("runBtn").addEventListener("click", onRun);
+$("exportBtn").addEventListener("click", onExport);
+$("importBtn").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", onImportFile);
+$("resetBtn").addEventListener("click", onReset);
+
+// باز شدن اپ = نمایش آخرین گزارش ذخیره‌شده و اجرای خودکار تحلیل
+(function start() {
+  const snap = loadSnap();
+  if (snap) render(loadState(), snap);
+  onRun();
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
