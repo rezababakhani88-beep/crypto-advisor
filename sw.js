@@ -1,7 +1,7 @@
 // سرویس‌ورکر: اپ حتی بدون اینترنت باز می‌شود و آخرین گزارش را نشان می‌دهد.
 // فایل‌های خود اپ «اول شبکه» هستند تا نسخه‌ی جدید فوراً برسد؛ درخواست‌های
 // بایننس اصلاً دست نمی‌خورند (همیشه مستقیم از شبکه).
-const CACHE = "crypto-advisor-v1";
+const CACHE = "crypto-advisor-v3";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -18,6 +18,8 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
+  // فایل داده‌ی سبد هرگز کش نمی‌شود تا همیشه آخرین وضعیت را ببینی
+  if (url.pathname.includes("/d-")) { e.respondWith(fetch(e.request)); return; }
   e.respondWith(
     fetch(e.request)
       .then(r => {
