@@ -1,32 +1,36 @@
-// سرویس‌ورکر: اپ حتی بدون اینترنت باز می‌شود و آخرین گزارش را نشان می‌دهد.
-// فایل‌های خود اپ «اول شبکه» هستند تا نسخه‌ی جدید فوراً برسد؛ درخواست‌های
-// بایننس اصلاً دست نمی‌خورند (همیشه مستقیم از شبکه).
-const CACHE = "crypto-advisor-v3";
-const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+// سرویس‌ورکر نسخه‌ی ۴ — بدون هیچ کشی.
+//
+// چرا کش حذف شد: این داشبورد وضعیت پول واقعی را نشان می‌دهد. نسخه‌ی
+// ذخیره‌شده یعنی ممکن است عددِ دیروز را ببینی و فکر کنی امروز است —
+// این بدتر از ندیدن است. پس همه‌چیز همیشه مستقیم از شبکه می‌آید.
+//
+// این فایل فقط برای این نگه داشته شده که گوشی اجازه‌ی «افزودن به صفحه‌ی
+// اصلی» بدهد (اندروید برای نصب، وجود سرویس‌ورکر را لازم دارد).
+const VERSION = "v4-nocache";
 
-self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
-  self.skipWaiting();
+self.addEventListener("install", () => {
+  self.skipWaiting();   // منتظر بسته شدن تب‌ها نمان
 });
 
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
-  self.clients.claim();
+  e.waitUntil((async () => {
+    // هر چیزی که نسخه‌های قبلی ذخیره کرده بودند پاک شود
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+
+    await self.clients.claim();
+
+    // صفحه‌هایی که همین الان باز هستند نسخه‌ی قدیمی را نشان می‌دهند.
+    // یک بار تازه‌شان کن تا کاربر مجبور نباشد دستی کاری بکند.
+    const clients = await self.clients.matchAll({type: "window"});
+    for (const c of clients) {
+      try { await c.navigate(c.url); } catch (_) { /* مهم نیست */ }
+    }
+  })());
 });
 
 self.addEventListener("fetch", e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
-  // فایل داده‌ی سبد هرگز کش نمی‌شود تا همیشه آخرین وضعیت را ببینی
-  if (url.pathname.includes("/d-")) { e.respondWith(fetch(e.request)); return; }
-  e.respondWith(
-    fetch(e.request)
-      .then(r => {
-        const copy = r.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-        return r;
-      })
-      .catch(() => caches.match(e.request).then(m => m || caches.match("./index.html")))
-  );
+  // هیچ چیز ذخیره نمی‌شود — فقط رد می‌شود
+  if (e.request.method !== "GET") return;
+  e.respondWith(fetch(e.request));
 });
