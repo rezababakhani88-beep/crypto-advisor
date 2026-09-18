@@ -111,7 +111,7 @@
 <!-- نشان نسخه: اگر این خط را نمی‌بینی، مرورگرت نسخه‌ی قدیمی را
      نشان می‌دهد و باید داده‌های سایت را پاک کنی. -->
 <div class="note" style="display:flex; align-items:center; justify-content:space-between; gap:10px">
-  <span>نسخه‌ی <b id="buildTag">5</b> — قفل‌دار</span>
+  <span>نسخه‌ی <b id="buildTag">6</b> — قفل‌دار</span>
   <button class="refresh" onclick="lockDash()" style="padding:6px 12px; font-size:12px">🔒 قفل کن</button>
 </div>
 
@@ -120,6 +120,18 @@ const API = "https://apiv2.nobitex.ir";
 const MA_DAYS = 120;
 const fa = n => n.toLocaleString("fa-IR");
 const usd = n => "$" + Math.round(n).toLocaleString("en-US");
+
+// قیمت ارز: بعضی ارزها هزاران دلارند و بعضی هزارم دلار. تعداد رقم
+// اعشار باید با خود قیمت جور باشد، وگرنه ONE می‌شود "$0" و بی‌معنی.
+function px(n){
+  if(n === undefined || n === null || !isFinite(n)) return "—";
+  let d;
+  if(n >= 1000) d = 0;
+  else if(n >= 1) d = 2;
+  else if(n >= 0.01) d = 4;
+  else d = 6;
+  return "$" + n.toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d});
+}
 
 // ---------- سیگنال زنده ----------
 async function loadSignal(){
@@ -288,15 +300,28 @@ async function loadPortfolio(){
     document.getElementById("holdCard").style.display = "block";
     document.getElementById("holdBody").innerHTML = holds.map(h=>{
       const ok = h["وضعیت"] === "بالای میانگین";
-      const share = total > 0 ? (h["ارزش"]/total*100) : 0;
-      return `<div class="trade">
-        <span>
-          <span class="tag ${ok?'buy':'sell'}">${h["ارز"]}</span>
-          <span class="muted" style="margin-right:8px; font-size:12px">${share.toFixed(0)}٪ سبد</span>
-        </span>
-        <span>${usd(h["ارزش"])}
-          <span class="muted" style="font-size:11px; margin-right:6px">${ok?"🟢":"🔴"}</span>
-        </span>
+      const pl = h["سود_درصد"];            // اگر ربات هنوز قیمت خرید را ندارد، undefined است
+      const has = (pl !== undefined && pl !== null);
+      const up = has && pl >= 0;
+      const cls = !has ? "muted" : (up ? "in" : "out");
+      const plTxt = !has ? "—"
+        : `${up ? "+" : "−"}${Math.abs(pl).toFixed(2)}٪`;
+      const plUsd = h["سود_دلار"];
+      const plUsdTxt = (plUsd === undefined || plUsd === null) ? ""
+        : `<span class="muted" style="font-size:11px; margin-right:6px">${plUsd >= 0 ? "+" : "−"}$${Math.abs(plUsd).toFixed(2)}</span>`;
+
+      return `<div class="trade" style="display:block">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <span>
+            <span class="tag ${ok?'buy':'sell'}">${h["ارز"]}</span>
+            <span class="muted" style="margin-right:8px; font-size:11px">${ok?"🟢":"🔴"}</span>
+          </span>
+          <span class="${cls}" style="font-weight:600; font-size:15px">${plTxt}${plUsdTxt}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px">
+          <span class="muted" style="font-size:12px">قیمت: ${px(h["قیمت"])}</span>
+          <span class="muted" style="font-size:12px">ارزش ${usd(h["ارزش"])}</span>
+        </div>
       </div>`;
     }).join("");
   } else {
