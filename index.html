@@ -108,6 +108,13 @@
   موجودی سبد از آخرین اجرای ربات روی کامپیوتر می‌آید.
 </div>
 
+<!-- نشان نسخه: اگر این خط را نمی‌بینی، مرورگرت نسخه‌ی قدیمی را
+     نشان می‌دهد و باید داده‌های سایت را پاک کنی. -->
+<div class="note" style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+  <span>نسخه‌ی <b id="buildTag">5</b> — قفل‌دار</span>
+  <button class="refresh" onclick="lockDash()" style="padding:6px 12px; font-size:12px">🔒 قفل کن</button>
+</div>
+
 <script>
 const API = "https://apiv2.nobitex.ir";
 const MA_DAYS = 120;
@@ -312,6 +319,13 @@ async function loadPortfolio(){
   }
 }
 
+// رمز ذخیره‌شده را پاک کن تا داشبورد دوباره قفل شود.
+// اگر گوشی را به کسی می‌دهی، این را بزن.
+function lockDash(){
+  try{ localStorage.removeItem(PW_KEY); }catch(e){}
+  loadPortfolio();
+}
+
 async function loadAll(){
   try{ await loadSignal(); }
   catch(e){
@@ -324,7 +338,17 @@ async function loadAll(){
 }
 
 loadAll();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js")
+    .then(reg => { reg.update(); })
+    .catch(()=>{});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if(reloaded) return;          // فقط یک بار، وگرنه حلقه می‌شود
+    reloaded = true;
+    location.reload();
+  });
+}
 </script>
 </body>
 </html>
