@@ -174,16 +174,71 @@ function drawChart(rows, maDays, allCloses){
 }
 
 // ---------- سبد (از فایل ربات روی گیت‌هاب) ----------
+// ---------- رمزگشایی (داده روی گیت‌هاب رمزگذاری‌شده است) ----------
+const DATA_FILE = "d-pqqb697rh2.json";
+const PW_KEY = "dash_pw";
+
+async function decryptBlob(blob, password){
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey("raw", enc.encode(password),
+    "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt:b64(blob.salt), iterations:blob.iter, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt(
+    {name:"AES-GCM", iv:b64(blob.iv)}, key, b64(blob.data));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function askPassword(msg){
+  const body = document.getElementById("portBody");
+  body.innerHTML = `
+    <div style="text-align:center">
+      <div class="muted" style="font-size:13px; margin-bottom:12px">
+        ${msg || "برای دیدن سبد، رمز داشبورد را وارد کن"}
+      </div>
+      <input id="pwInput" type="password" inputmode="text" placeholder="رمز"
+        style="width:100%; padding:11px; border-radius:10px; border:1px solid var(--line);
+               background:var(--card2); color:var(--txt); font-family:inherit;
+               font-size:15px; text-align:center; margin-bottom:10px">
+      <button class="refresh" style="width:100%" onclick="savePw()">باز کن</button>
+    </div>`;
+  document.getElementById("pwInput").addEventListener("keydown", e=>{
+    if(e.key === "Enter") savePw();
+  });
+}
+
+function savePw(){
+  const v = document.getElementById("pwInput").value.trim();
+  if(!v) return;
+  try{ localStorage.setItem(PW_KEY, v); }catch(e){}
+  loadPortfolio();
+}
+
 async function loadPortfolio(){
   const body = document.getElementById("portBody");
   let p;
+  let pw = null;
+  try{ pw = localStorage.getItem(PW_KEY); }catch(e){}
+
+  let blob;
   try{
-    const r = await fetch("./portfolio.json?t=" + Date.now(), {cache:"no-store"});
+    const r = await fetch("./" + DATA_FILE + "?t=" + Date.now(), {cache:"no-store"});
     if(!r.ok) throw new Error("not found");
-    p = await r.json();
+    blob = await r.json();
   }catch(e){
     body.innerHTML = `<div class="err">هنوز اطلاعاتی از ربات منتشر نشده.<br>
       <span class="muted">بعد از اولین اجرای ربات روی کامپیوتر، اینجا پر می‌شود.</span></div>`;
+    return;
+  }
+
+  if(!pw){ askPassword(); return; }
+  try{
+    p = await decryptBlob(blob, pw);
+  }catch(e){
+    try{ localStorage.removeItem(PW_KEY); }catch(_){}
+    askPassword("رمز اشتباه بود. دوباره امتحان کن.");
     return;
   }
 
