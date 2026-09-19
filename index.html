@@ -105,13 +105,16 @@
 
 <div class="note">
   سیگنال زنده مستقیم از نوبیتکس محاسبه می‌شود.<br>
-  موجودی سبد از آخرین اجرای ربات روی کامپیوتر می‌آید.
+  مقدار ارزها و قیمت خرید از آخرین اجرای ربات می‌آید،<br>
+  ولی قیمت و سود و زیان همین الان از نوبیتکس گرفته می‌شود.<br>
+  <span class="muted">تصمیم خرید و فروشِ ربات روی کندلِ بسته‌شده‌ی
+  روزانه است، نه این قیمت لحظه‌ای.</span>
 </div>
 
 <!-- نشان نسخه: اگر این خط را نمی‌بینی، مرورگرت نسخه‌ی قدیمی را
      نشان می‌دهد و باید داده‌های سایت را پاک کنی. -->
 <div class="note" style="display:flex; align-items:center; justify-content:space-between; gap:10px">
-  <span>نسخه‌ی <b id="buildTag">6</b> — قفل‌دار</span>
+  <span>نسخه‌ی <b id="buildTag">7</b> — قفل‌دار، قیمت زنده</span>
   <button class="refresh" onclick="lockDash()" style="padding:6px 12px; font-size:12px">🔒 قفل کن</button>
 </div>
 
@@ -133,6 +136,31 @@ function px(n){
   return "$" + n.toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d});
 }
 
+// ---------- قیمت زنده‌ی ارزهای سبد ----------
+// فایل ربات روزی یک بار نوشته می‌شود، پس قیمت و سودِ داخلش مالِ آخرین
+// اجراست. اینجا قیمت لحظه‌ای را مستقیم از نوبیتکس می‌گیریم و سود و
+// زیان را دوباره حساب می‌کنیم.
+//
+// مهم: این فقط نمایش است. تصمیم خرید و فروشِ ربات همچنان روی کندلِ
+// بسته‌شده‌ی روزانه گرفته می‌شود و این اعداد هیچ اثری روی آن ندارند.
+//
+// یک درخواست برای همه‌ی ارزها (srcCurrency با کاما جدا می‌شود).
+async function fetchLive(coins){
+  if(!coins.length) return null;
+  const src = coins.map(c => c.toLowerCase()).join(",");
+  const r = await fetch(`${API}/market/stats?srcCurrency=${src}&dstCurrency=usdt`,
+                        {cache:"no-store"});
+  const d = await r.json();
+  if(d.status !== "ok" || !d.stats) throw new Error("stats failed");
+  const out = {};
+  for(const c of coins){
+    const s = d.stats[c.toLowerCase() + "-usdt"];
+    const v = s ? parseFloat(s.latest) : NaN;
+    if(isFinite(v) && v > 0) out[c] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 // ---------- سیگنال زنده ----------
 async function loadSignal(){
   const now = Math.floor(Date.now()/1000);
@@ -142,9 +170,11 @@ async function loadSignal(){
   const d = await r.json();
   if(d.s !== "ok" || !d.c || d.c.length < MA_DAYS) throw new Error("داده کافی نیست");
 
-  // کندل ناقص امروز را کنار می‌گذاریم - تصمیم فقط روی کندل کامل‌شده
-  const todayStart = now - (now % 86400);
-  const rows = d.t.map((t,i)=>({t, c:d.c[i]})).filter(x => x.t < todayStart);
+  // کندل ناقص را کنار می‌گذاریم: کندل روزانه‌ای که از لحظه‌ی t شروع
+  // شده، فقط بعد از t+۸۶۴۰۰ کامل است. (برشِ «نیمه‌شب UTC» غلط بود —
+  // کندل‌های نوبیتکس روی روزِ ایران بسته می‌شوند، پس از ۰۳:۳۰ تا
+  // نیمه‌شب تهران کندلِ در حال شکل‌گیری را کامل حساب می‌کرد.)
+  const rows = d.t.map((t,i)=>({t, c:d.c[i]})).filter(x => x.t + 86400 <= now);
 
   const closes = rows.map(x=>x.c);
   const last = closes[closes.length-1];
@@ -263,10 +293,37 @@ async function loadPortfolio(){
 
   const holds = p["دارایی‌ها"] || [];
   const usdt = p["تتر"] ?? 0;
-  const total = p["ارزش_کل_دلار"] ?? 0;
+  let total = p["ارزش_کل_دلار"] ?? 0;
   const mode = p["حالت"] ?? "—";
   const filter = p["فیلتر_بازار"] ?? "—";
   const upd = p["به‌روزرسانی"] ?? "—";
+
+  // قیمت لحظه‌ای را بگیر و ارزش/سود هر ارز را دوباره حساب کن.
+  // اگر نوبیتکس در دسترس نبود، همان عددهای ربات نمایش داده می‌شوند.
+  let liveAt = null;
+  try{
+    const live = await fetchLive(holds.map(h => h["ارز"]).filter(Boolean));
+    if(live){
+      for(const h of holds){
+        const now = live[h["ارز"]];
+        if(!now) continue;
+        const qty = h["مقدار"], buy = h["قیمت_خرید"];
+        h["قیمت"] = now;
+        if(typeof qty === "number") h["ارزش"] = qty * now;
+        if(typeof buy === "number" && buy > 0){
+          h["سود_درصد"] = (now / buy - 1) * 100;
+          if(typeof qty === "number") h["سود_دلار"] = (now - buy) * qty;
+        }
+      }
+      total = holds.reduce((a, h) =>
+        a + (typeof h["ارزش"] === "number" ? h["ارزش"] : 0), 0) + (usdt || 0);
+      liveAt = new Date();
+    }
+  }catch(e){ liveAt = null; }
+
+  const liveTxt = liveAt
+    ? `🟢 زنده — ${String(liveAt.getHours()).padStart(2,"0")}:${String(liveAt.getMinutes()).padStart(2,"0")}`
+    : `🟡 از آخرین اجرای ربات`;
 
   // اگر بیشتر از ۲ روز از آخرین اجرا گذشته، هشدار بده
   let stale = false;
@@ -281,6 +338,8 @@ async function loadPortfolio(){
     <div class="rows">
       <div class="row"><span class="k">ارزش کل</span>
         <span class="v big">${usd(total)}</span></div>
+      <div class="row"><span class="k">قیمت‌ها</span>
+        <span class="v ${liveAt ? "in" : ""}" style="font-size:13px">${liveTxt}</span></div>
       <div class="row"><span class="k">تعداد ارزها</span>
         <span class="v">${holds.length}</span></div>
       <div class="row"><span class="k">تتر (نقد)</span>
