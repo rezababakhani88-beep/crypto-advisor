@@ -55,14 +55,16 @@
   .err{color:var(--amber); font-size:13px; text-align:center}
   .muted{color:var(--dim)}
   .skeleton{color:var(--dim)}
-  /* نشان لوگو کنار عنوان */
+  /* نشان لوگو کنار عنوان. نشان پهن‌تر از بلند است (شاخ‌ها)، پس
+     ارتفاع را قفل می‌کنیم و عرض خودش تنظیم می‌شود - با border-radius
+     گرد نمی‌کنیم وگرنه شاخ‌ها بریده می‌شوند. */
   .brand{display:flex; align-items:center; gap:9px}
-  .brand img{width:28px; height:28px; border-radius:50%; display:block}
+  .brand img{height:34px; width:auto; display:block}
   /* امضای پایین صفحه - انگلیسی، پس چپ‌به‌راست */
   .credit{direction:ltr; margin-top:20px; padding-top:14px;
           border-top:1px solid var(--line); display:flex; align-items:center;
           justify-content:center; gap:9px; color:var(--dim)}
-  .credit img{width:22px; height:22px; border-radius:50%; opacity:.9}
+  .credit img{height:30px; width:auto; opacity:.95}
   .credit .t{font-size:11.5px; letter-spacing:.2px; line-height:1.5}
   .credit b{color:var(--txt); font-weight:600}
 </style>
@@ -71,7 +73,7 @@
 
 <div class="head">
   <div class="brand">
-    <img src="icon-192.png" alt="">
+    <img src="logo-mark.png" alt="Relentless">
     <h1>داشبورد</h1>
   </div>
   <button class="refresh" onclick="loadAll()">بروزرسانی</button>
@@ -127,13 +129,13 @@
 <!-- نشان نسخه: اگر این خط را نمی‌بینی، مرورگرت نسخه‌ی قدیمی را
      نشان می‌دهد و باید داده‌های سایت را پاک کنی. -->
 <div class="note" style="display:flex; align-items:center; justify-content:space-between; gap:10px">
-  <span>نسخه‌ی <b id="buildTag">9</b> — قفل‌دار، قیمت زنده</span>
+  <span>نسخه‌ی <b id="buildTag">10</b> — قفل‌دار، قیمت زنده</span>
   <button class="refresh" onclick="lockDash()" style="padding:6px 12px; font-size:12px">🔒 قفل کن</button>
 </div>
 
 <!-- امضا -->
 <div class="credit">
-  <img src="icon-192.png" alt="">
+  <img src="logo-mark.png" alt="Relentless">
   <div class="t">Concept by <b>Reza Babakhani</b> &nbsp;·&nbsp; Built by <b>Claude</b></div>
 </div>
 
